@@ -1,0 +1,28 @@
+name: Post to Hashnode
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'blog/**.md'
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install dependencies
+        run: npm install
+      - name: Publish to Hashnode
+        uses: PritishMishraa/hashnode-publish-action@v1.0.2
+        with:
+          src: blog
+          HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
+      - name: [AUTO COMMIT] Update Status to Published
+        uses: mikeal/publish-to-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # ... add more steps as needed
