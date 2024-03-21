@@ -5,7 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'blog/**.md'
+      - "blog/**.md"
+  workflow_dispatch:
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -21,7 +22,7 @@ jobs:
         with:
           src: blog
           HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
-      - name: (AUTO COMMIT) Update Status to Published
+      - name: "[AUTO COMMIT] Update Status to Published"
         uses: mikeal/publish-to-github-action@master
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
