@@ -18,7 +18,7 @@ jobs:
       - name: Publish to Hashnode
         uses: PritishMishraa/hashnode-publish-action@v1.0.2
         with:
-          src: blog
+          src: blogs
           HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
       - name: "[AUTO COMMIT] Update Status to Published"
         uses: mikeal/publish-to-github-action@master
