@@ -14,4 +14,4 @@ tags:
 
 # Update 1. Typescript backend first steps
 
-Making changes to this file to see if it gets pushed to Hashnode
+Update blog post to try .sh script, the .md file has to be in the HEAD or last commit in the branch
