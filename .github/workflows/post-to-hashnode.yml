@@ -1,3 +1,31 @@
+# name: Post to Hashnode
+
+# on:
+#   push:
+#     branches:
+#       - main
+#     paths:
+#       - "blog/**.md"
+#   workflow_dispatch:
+# jobs:
+#   publish:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v2
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: 20
+#       - name: Publish to Hashnode
+#         uses: PritishMishraa/hashnode-publish-action@v1.0.2
+#         with:
+#           src: blogs
+#           HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
+#       - name: "[AUTO COMMIT] Update Status to Published"
+#         uses: mikeal/publish-to-github-action@master
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+# ... add more steps as needed
+
 name: Post to Hashnode
 
 on:
@@ -11,17 +39,11 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: actions/checkout@v3
       - name: Publish to Hashnode
-        uses: PritishMishraa/hashnode-publish-action@v1.0.2
+        uses: prettyirrelevant/hashnode-posts-publisher@v0.1.3
         with:
-          src: blogs
-          HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
-      - name: "[AUTO COMMIT] Update Status to Published"
-        uses: mikeal/publish-to-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # ... add more steps as needed
+          posts-directory: posts
+          supported-formats: md,html
+          access-token: ${{ secrets.HASHNODE_PAT }}
+          publication-id: nicolascalev
