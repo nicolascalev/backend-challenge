@@ -1,6 +1,6 @@
 
 import dotenv from 'dotenv';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { simpleGit } from 'simple-git';
 import fm from 'front-matter';
 import axios from 'axios';
@@ -57,13 +57,22 @@ main();
  * @returns {Promise<Array<{ content: string, path: string, attributes: any }>>} - Returns a promise that resolves to an array of objects. Each object represents a markdown blog with properties: content, path and attributes.
  */
 async function getMarkdownBlogsFromLastCommit() {
-  const { paths } = await simpleGit().diff(["--name-only", "HEAD^", "HEAD"]).grep(".md");
+  const paths = await simpleGit().diff(["--name-only", "HEAD^", "HEAD"]).then(res => res.split("\n"));
   const regex = new RegExp('blog/.*\\.md');
-  const markdownBlogsPaths = Array.from(paths).filter(path => regex.test(path))
+  const markdownBlogsPaths = paths.filter(path => regex.test(path))
 
   const markdownBlogs = [];
   for (const path of markdownBlogsPaths) {
-    // TODO: handle deleted files, if a file is deleted, then don't try to read it or add it to the list
+    if (!existsSync(path)) {
+      console.log("\nFILE FOR BLOG DELETED. Now you have to delete it from Hashnode manually. " + path);
+      const beforeDeleted = await simpleGit().show(["HEAD^:" + path]);
+      const markdownBeforeDeleted = fm(beforeDeleted);
+      if (markdownBeforeDeleted.attributes.title) {
+        console.log("Title of deleted blog: " + markdownBeforeDeleted.attributes.title + "\n");
+      }
+      continue;
+    }
+
     const content = readFileSync(path, "utf-8");
     const markdown = fm(content);
     if (!markdown.attributes.title || !markdown.attributes.tags) {
