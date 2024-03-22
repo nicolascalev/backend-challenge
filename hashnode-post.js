@@ -18,6 +18,10 @@ if (!process.env.HASHNODE_HOST) {
 }
 
 async function main() {
+  console.log("\nAttempting to post to Hashnode...");
+  console.log("WARNING: We find blogs based on the title of the blog. The title hast to be unique. Also if you change the title after the blog has been posted, we will create a new post and you have to delete the old one manually.");
+  console.log("WARNING: If you delete a blog, it will not be deleted from Hashnode. You have to delete it manually.")
+
   console.log("\nGetting blog/**.md files from last commit...")
   const markdownBlogs = await getMarkdownBlogsFromLastCommit();
 
@@ -29,12 +33,15 @@ async function main() {
   console.log("\nGetting all posts from hashnode...")
   const postsFromHashNode = await getPostsFromHashnode();
 
+  console.log("\nGetting publication id from hashnode...");
+  const publicationId = await getPublicationId();
+  if (!publicationId) {
+    console.error("Error getting publication id from hashnode");
+    return;
+  }
+
   // check if the blogs in the last commit exist in the hashnode posts
-  await upsertBlogs(markdownBlogs, postsFromHashNode);
-  // console.log({
-  //   markdownBlogs,
-  //   postsFromHashNode
-  // })
+  await upsertBlogs(markdownBlogs, postsFromHashNode, publicationId);
 }
 
 main();
@@ -50,13 +57,19 @@ main();
  * @returns {Promise<Array<{ content: string, path: string, attributes: any }>>} - Returns a promise that resolves to an array of objects. Each object represents a markdown blog with properties: content, path and attributes.
  */
 async function getMarkdownBlogsFromLastCommit() {
-  const { paths } = await simpleGit().diff(["--name-only", "HEAD^", "HEAD"]).grep('.md');
-  const markdownBlogsPaths = Array.from(paths);
+  const { paths } = await simpleGit().diff(["--name-only", "HEAD^", "HEAD"]).grep(".md");
+  const regex = new RegExp('blog/.*\\.md');
+  const markdownBlogsPaths = Array.from(paths).filter(path => regex.test(path))
+
   const markdownBlogs = [];
   for (const path of markdownBlogsPaths) {
     // TODO: handle deleted files, if a file is deleted, then don't try to read it or add it to the list
     const content = readFileSync(path, "utf-8");
     const markdown = fm(content);
+    if (!markdown.attributes.title || !markdown.attributes.tags) {
+      console.log("---> BlOG SKIPPED! Blog must contain a title in the frontmatter. Path: " + path);
+      continue;
+    }
     markdownBlogs.push({
       attributes: markdown.attributes,
       content: markdown.body,
@@ -101,22 +114,48 @@ async function getPostsFromHashnode() {
           "Content-Type": "application/json",
           "Authorization": process.env.HASHNODE_PAT
         }
-      }).then(res => res.data.data.publication.posts.edges.map(post => post.node));;
+      }).then(res => res?.data?.data?.publication?.posts?.edges?.map(post => post.node));
+    if (!posts) {
+      console.error("Error fetching posts from hashnode");
+      return;
+    }
     postsFromHashNode.push(...posts);
     total = posts.length;
   }
   return postsFromHashNode;
 }
 
-async function upsertBlogs(markdownBlogs, postsFromHashNode) {
+/**
+ * This function retrieves the publication id from the hashnode API.
+ * It uses the axios library to make a post request to the hashnode API with a query to retrieve the publication id.
+ * @async
+ * @function getPublicationId
+ * @returns {Promise<string>} - Returns a promise that resolves to a string representing the publication id.
+ * */
+async function getPublicationId() {
+  return await axios.post("https://gql.hashnode.com", {
+    query: `query {
+          publication( host: "${process.env.HASHNODE_HOST}" ) { 
+            id
+          }
+        }`
+  }, {
+    Headers: {
+      "Content-Type": "application/json",
+      "Authorization": process.env.HASHNODE_PAT
+    }
+  }).then(res => res?.data?.data?.publication?.id);
+}
+
+async function upsertBlogs(markdownBlogs, postsFromHashNode, publicationId) {
   for (const blog of markdownBlogs) {
     const post = postsFromHashNode.find(post => post.title === blog.attributes.title);
     if (post) {
-      console.log(`\nUpdating post in Hashnode: ${post.title}...`);
+      console.log(`\nUpdating post in Hashnode: ${blog.path}...`);
       await updatePost(post.id, blog);
     } else {
-      console.log(`\nCreating post in Hashnode: ${blog.attributes.title}...`);
-      await createPost(blog);
+      console.log(`\nCreating post in Hashnode: ${blog.path}...`);
+      await createPost(blog, publicationId);
     }
   }
 }
@@ -166,16 +205,23 @@ async function updatePost(id, blog) {
     console.error(JSON.stringify(err.response.data, null, 2));
   });
 
+
+  if (response.data.errors) {
+    console.log("\nError updating post in Hashnode: " + blog.attributes.title)
+    console.error(JSON.stringify(response.data.errors, null, 2));
+    return
+  }
+
   if (response.data) {
     console.log("Updated blog for " + blog.path);
     console.log(response.data.data.updatePost.post.url);
   }
 };
 
-async function createPost(blog) {
+async function createPost(blog, publicationId) {
   const mutation = `
-    mutation CreatePost($input: CreatePostInput!) {
-      createPost(input: $input) {
+    mutation PublishPost($input: PublishPostInput!) {
+      publishPost(input: $input) {
         post {
           id
           title
@@ -196,7 +242,7 @@ async function createPost(blog) {
       title: blog.attributes.title,
       contentMarkdown: blog.content,
       tags: blog.attributes.tags.map(tag => ({ name: tag, slug: slugify(tag) })),
-      publicationId: process.env.HASHNODE_HOST
+      publicationId
     }
   };
 
@@ -216,9 +262,15 @@ async function createPost(blog) {
     console.error(JSON.stringify(err.response.data, null, 2));
   });
 
+  if (response.data.errors) {
+    console.log("\nError creating post in Hashnode: " + blog.attributes.title)
+    console.error(JSON.stringify(response.data.errors, null, 2));
+    return
+  }
+
   if (response.data) {
-    console.log("Created blog for " + blog.path);
-    console.log(response.data.data.createPost.post.url);
+    console.log("Published blog for " + blog.path);
+    console.log(response.data.data.publishPost.post.url);
   }
 }
 
