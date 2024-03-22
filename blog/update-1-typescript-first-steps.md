@@ -69,5 +69,3 @@ I handled all the configuration for me and it was just the best option I could f
 So far, none of this has to do with the actual development of the backend, but it was important to get started.
 
 In the next blog I will explain how I am using GitHub actions and Hashnode to document this project automatically.
-
-Force trigger action
