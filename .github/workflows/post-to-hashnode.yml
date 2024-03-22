@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
 
       - name: Setup Node.js environment
         uses: actions/setup-node@v3
@@ -23,8 +25,8 @@ jobs:
         run: npm i axios simple-git front-matter
 
       - name: Running script to post blogs to Hashnode
-        env:  # Add your environment variables here
-            HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
-            HASHNODE_HOST: ${{ secrets.HASHNODE_HOST }}
+        env: # Add your environment variables here
+          HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
+          HASHNODE_HOST: ${{ secrets.HASHNODE_HOST }}
         run: |
           node hashnode-post.js
