@@ -1,103 +1,12 @@
-# name: Post to Hashnode
-
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - "blog/**.md"
-#   workflow_dispatch:
-# jobs:
-#   publish:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v2
-#       - uses: actions/setup-node@v4
-#         with:
-#           node-version: 20
-#       - name: Publish to Hashnode
-#         uses: PritishMishraa/hashnode-publish-action@v1.0.2
-#         with:
-#           src: blogs
-#           HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
-#       - name: "[AUTO COMMIT] Update Status to Published"
-#         uses: mikeal/publish-to-github-action@master
-#         env:
-#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# ... add more steps as needed
-
-# name: Post to Hashnode
-
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - "blog/**.md"
-#   workflow_dispatch:
-# jobs:
-#   publish:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-#       - name: Publish to Hashnode
-#         uses: prettyirrelevant/hashnode-posts-publisher@v0.1.3
-#         with:
-#           posts-directory: posts
-#           supported-formats: md,html
-#           access-token: ${{ secrets.HASHNODE_PAT }}
-#           publication-id: nicolascalev
-
-# name: Check and Update Blog Posts
-
-# on:
-#   push:
-#     branches: [main]
-
-# jobs:
-#   update-posts:
-#     runs-on: ubuntu-latest
-#     steps:
-#       - uses: actions/checkout@v3
-
-#       - name: Install yq for YAML parsing
-#         run: sudo apt-get update && sudo apt-get install -y yq
-
-#       - name: Install curl for API requests
-#         run: sudo apt-get update && sudo apt-get install -y curl
-
-#       - name: Get changed files
-#         id: changed_files
-#         run: |
-#           git diff --name-only HEAD^ HEAD | grep 'blog/.*\.md'
-
-#       - name: Process changed files
-#         run: |
-#           for file in ${{ steps.changed_files.outputs }}; do
-#             echo "## Processing file: $file"
-#             title=$(yq -r '.title' "blog/$file")
-
-#             # Check if post exists
-#             post_response=$(curl --silent https://api.myblog.com/?title=$title)
-
-#             if [[ $post_response == *'"id":'* ]]; then
-#               # Update existing post with PATCH
-#               post_id=$(echo $post_response | yq -r '.id')
-#               curl -X PATCH -H "Content-Type: text/plain" https://api.myblog.com/$post_id -d "$(cat "blog/$file")"
-#               echo "Patched post: $title"
-#             else
-#               # Create new post with POST
-#               curl -X POST -H "Content-Type: text/plain" https://api.myblog.com/ -d "$(cat "blog/$file")"
-#               echo "Created post: $title"
-#             fi
-#           done
-
-
-name: Post blog to Hashnode from latest commit
+name: Post blogs to Hashnode from latest commit
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
+    paths:
+      - "blog/**.md"
+  workflow_dispatch:
 
 jobs:
   update-posts:
@@ -113,11 +22,9 @@ jobs:
       - name: Install dependencies
         run: npm i axios simple-git front-matter
 
-      - name: Get changed files
-        id: changed_files
+      - name: Running script to post blogs to Hashnode
+        env:  # Add your environment variables here
+            HASHNODE_PAT: ${{ secrets.HASHNODE_PAT }}
+            HASHNODE_HOST: ${{ secrets.HASHNODE_HOST }}
         run: |
-          git diff --name-only HEAD^ HEAD | grep 'blog/.*\.md'
-
-      - name: Process changed files with Node.js
-        run: |
-          node process-files.js ${{ steps.changed_files.outputs }}
+          node hashnode-post.js
