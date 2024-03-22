@@ -57,11 +57,11 @@ main();
  * @returns {Promise<Array<{ content: string, path: string, attributes: any }>>} - Returns a promise that resolves to an array of objects. Each object represents a markdown blog with properties: content, path and attributes.
  */
 async function getMarkdownBlogsFromLastCommit() {
-
-  const paths = await simpleGit().diff(["--name-only", process.env.GITHUB_SHA]).then(res => res.split("\n"));
-  console.log("\nPaths of files changed in last commit: ", paths, "\n\n")
+  // process.env.GITHUB_SHA is the commit hash of the last commit which triggered the action and is provided by github actions
+  const paths = await simpleGit().show(["--name-only", process.env.GITHUB_SHA]).then(res => res.split("\n"));
   const regex = new RegExp('blog/.*\\.md');
   const markdownBlogsPaths = paths.filter(path => regex.test(path))
+  console.log("Markdown blogs found in last commit: " + markdownBlogsPaths.length)
 
   const markdownBlogs = [];
   for (const path of markdownBlogsPaths) {
