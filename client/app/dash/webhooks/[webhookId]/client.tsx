@@ -56,6 +56,8 @@ function SingleWebhookPageClient({ webhookId }: { webhookId: string }) {
     return <Text c="red">Error loading webhook</Text>;
   }
 
+  if (!webhook) return null;
+
   return (
     <div>
       <Text fw={500} mb="md">
