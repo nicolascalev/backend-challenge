@@ -2,7 +2,7 @@
 
 As a full-stack web developer, I have worked on multiple projects with different requirements and domains. However, I haven't had to implement more advanced backend functionality.
 
-I have worked with databases, web sockets, cli tools, authentication, streams and more. But I have never had to worry about performance and use workers or multi threading and tuff like that which seems to be very popular these days.
+I have worked with databases, web sockets, cli tools, authentication, and more. But I have never had to worry about performance and use workers or multi threading and tuff like that which seems to be very popular these days.
 
 And honestly that's enough for me. I like creating a Next js project and not having to deal with configuration. I like having my serverless functions taken care of. And the only reason I create this project, is for fun.
 
@@ -23,13 +23,6 @@ I will have to handle uploads, validate the size and mime type of the files, mak
 ### Command line commands
 
 I am using `ffmpeg` to process the images and I will do it from the command line.
-
-### Streams
-
-I will use streams in 2 sections:
-
-1. To process the images as a stream.
-2. To stream the logs of the application to an admin view.
 
 ### Web sockets
 
