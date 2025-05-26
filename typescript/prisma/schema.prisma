@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
+  name      String?
+  password  String
+  createdAt DateTime  @default(now())
+  Process   Process[]
+  Webhook   Webhook[]
+}
+
+model Process {
+  id                   Int            @id @default(autoincrement())
+  createdAt            DateTime       @default(now())
+  imageAmount          Int
+  finishedProcessingAt DateTime?
+  createdBy            User           @relation(fields: [createdById], references: [id])
+  createdById          Int
+  outputUrl            String
+  status               String         @default("processing")
+  webhookEvents        WebhookEvent[]
+}
+
+model Webhook {
+  id            Int            @id @default(autoincrement())
+  label         String
+  url           String
+  method        String         @default("POST")
+  requestConfig Json?
+  createdAt     DateTime       @default(now())
+  webhookEvents WebhookEvent[]
+  ownerId       Int
+  owner         User           @relation(fields: [ownerId], references: [id])
+}
+
+model WebhookEvent {
+  id             Int      @id @default(autoincrement())
+  webhookId      Int
+  webhook        Webhook  @relation(fields: [webhookId], references: [id])
+  createdAt      DateTime @default(now())
+  request        Json?
+  response       Json?
+  responseStatus Int?
+  processId      Int
+  process        Process  @relation(fields: [processId], references: [id])
+}

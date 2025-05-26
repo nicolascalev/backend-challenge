@@ -4,7 +4,7 @@ type Backend = {
 };
 
 export const backends: Backend[] = [
-  { name: "Node js backend", baseUrl: "http://localhost:3000" },
-  { name: "Golang backend", baseUrl: "http://localhost:3001" },
+  { name: "Typescript Hono backend", baseUrl: "http://localhost:5000" },
+  { name: "Golang backend", baseUrl: "" },
   { name: "C# backend", baseUrl: "" },
 ];
