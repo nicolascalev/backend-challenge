@@ -28,7 +28,9 @@ const webhookSchema = z.object({
     ),
 });
 
-type WebhookFormValues = z.infer<typeof webhookSchema>;
+type WebhookFormValues = z.infer<typeof webhookSchema> & {
+  id?: number;
+};
 
 interface Webhook {
   id: number;
@@ -44,20 +46,23 @@ interface Webhook {
 }
 
 interface WebhookFormProps {
-  onCreated: (webhook: Webhook) => void;
+  onCreated?: (webhook: Webhook) => void;
+  onUpdated?: (webhook: Webhook) => void;
   onCancel: () => void;
+  action: 'create' | 'edit';
+  defaultValues?: Partial<WebhookFormValues>;
 }
 
-export function WebhookForm({ onCreated, onCancel }: WebhookFormProps) {
+export function WebhookForm({ onCreated, onUpdated, onCancel, action, defaultValues }: WebhookFormProps) {
   const { token } = useAuth();
   const { selectedBackend } = useBackend();
 
   const form = useForm<WebhookFormValues>({
     initialValues: {
-      label: "",
-      url: "",
-      method: "POST",
-      requestConfig: "",
+      label: defaultValues?.label || "",
+      url: defaultValues?.url || "",
+      method: defaultValues?.method || "POST",
+      requestConfig: defaultValues?.requestConfig ? JSON.stringify(defaultValues.requestConfig, null, 2) : "",
     },
     validate: zodResolver(webhookSchema),
   });
@@ -72,32 +77,48 @@ export function WebhookForm({ onCreated, onCancel }: WebhookFormProps) {
       return;
     }
 
+    const requestData = {
+      ...values,
+      requestConfig: values.requestConfig ? JSON.parse(values.requestConfig) : undefined,
+    };
+
     const result = await tryCatch(
-      axios.post<Webhook>(
-        `${selectedBackend.baseUrl}/api/webhook`,
-        {
-          ...values,
-          requestConfig: values.requestConfig ? JSON.parse(values.requestConfig) : undefined,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      )
+      action === 'create' 
+        ? axios.post<Webhook>(
+            `${selectedBackend.baseUrl}/api/webhook`,
+            requestData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
+        : axios.patch<Webhook>(
+            `${selectedBackend.baseUrl}/api/webhook/${defaultValues?.id}`,
+            requestData,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          )
     );
 
     if (result.error) {
       console.error(result.error);
       notifications.show({
         title: "Error",
-        message: result.error instanceof Error ? result.error.message : "Failed to create webhook",
+        message: result.error instanceof Error ? result.error.message : `Failed to ${action} webhook`,
         color: "red",
       });
       return;
     }
 
-    onCreated(result.data.data);
+    if (action === 'create' && onCreated) {
+      onCreated(result.data.data);
+    } else if (action === 'edit' && onUpdated) {
+      onUpdated(result.data.data);
+    }
   };
 
   return (
@@ -127,10 +148,12 @@ export function WebhookForm({ onCreated, onCancel }: WebhookFormProps) {
         label="Request Config (JSON)"
         placeholder='{"headers": {"Authorization": "Bearer token"}}'
         mt="md"
+        autosize
+        maxRows={10}
         {...form.getInputProps("requestConfig")}
       />
       <Button type="submit" fullWidth mt="xl">
-        Create Webhook
+        {action === 'create' ? 'Create' : 'Update'} Webhook
       </Button>
       <Button variant="subtle" fullWidth mt="sm" onClick={onCancel}>
         Cancel

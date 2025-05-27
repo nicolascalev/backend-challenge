@@ -1,6 +1,5 @@
 "use client";
 import {
-  Anchor,
   Button,
   Card,
   Divider,
@@ -167,7 +166,7 @@ function DashRootPage() {
         )}
       </Flex>
       <Divider my="md" mx="-md" />
-      <Card withBorder>
+      <Card>
         {processHistory.error && (
           <Group justify="center" align="center" gap="sm">
             <Text c="red">Error loading process history</Text>
@@ -202,17 +201,16 @@ function DashRootPage() {
                     <Table.Td>{result.imageAmount}</Table.Td>
                     <Table.Td>{result.status}</Table.Td>
                     <Table.Td>
-                      <Anchor
+                      <Button
                         component={Link}
                         href={`/dash/results/${result.id}`}
-                        size="sm"
-                        c="blue"
+                        size="xs"
+                        color="black"
+                        variant="subtle"
+                        rightSection={<IconChevronRight size={14} />}
                       >
-                        <Group gap={4} align="center">
-                          Results
-                          <IconChevronRight size={14} />
-                        </Group>
-                      </Anchor>
+                        Results
+                      </Button>
                     </Table.Td>
                   </Table.Tr>
                 ))}

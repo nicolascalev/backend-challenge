@@ -120,6 +120,7 @@ api.post("/batch", requireAuth, async (c) => {
   const process = await createBatchProcess({
     images,
     userId,
+    context: c,
   });
 
   return c.json(process);
@@ -268,5 +269,79 @@ api.get("/webhook/:webhookId/events", requireAuth, async (c) => {
 
   return c.json(webhook);
 });
+
+// DELETE /api/webhook/:webhookId
+api.delete("/webhook/:webhookId", requireAuth, async (c) => {
+  const userId = c.get("jwtPayload").userId;
+  const webhookId = parseInt(c.req.param("webhookId"));
+
+  if (isNaN(webhookId)) {
+    return c.text("Invalid webhook ID", 400);
+  }
+
+  const webhook = await prisma.webhook.findUnique({
+    where: { id: webhookId },
+  });
+
+  if (!webhook) {
+    return c.text("Webhook not found", 404);
+  }
+
+  // Check if the webhook belongs to the authenticated user
+  if (webhook.ownerId !== userId) {
+    return c.text("Unauthorized", 403);
+  }
+
+  // Delete the webhook (webhook events will be automatically deleted due to cascade)
+  await prisma.webhook.delete({
+    where: { id: webhookId },
+  });
+
+  return c.text("Webhook deleted successfully", 200);
+});
+
+// PATCH /api/webhook/:webhookId
+api.patch(
+  "/webhook/:webhookId",
+  requireAuth,
+  zValidator(
+    "json",
+    z.object({
+      label: z.string().min(1).optional(),
+      url: z.string().url().optional(),
+      method: z.enum(["GET", "POST", "PUT", "DELETE", "PATCH"]).optional(),
+      requestConfig: z.record(z.any()).optional(),
+    })
+  ),
+  async (c) => {
+    const userId = c.get("jwtPayload").userId;
+    const webhookId = parseInt(c.req.param("webhookId"));
+    const updates = c.req.valid("json");
+
+    if (isNaN(webhookId)) {
+      return c.text("Invalid webhook ID", 400);
+    }
+
+    const webhook = await prisma.webhook.findUnique({
+      where: { id: webhookId },
+    });
+
+    if (!webhook) {
+      return c.text("Webhook not found", 404);
+    }
+
+    // Check if the webhook belongs to the authenticated user
+    if (webhook.ownerId !== userId) {
+      return c.text("Unauthorized", 403);
+    }
+
+    const updatedWebhook = await prisma.webhook.update({
+      where: { id: webhookId },
+      data: updates,
+    });
+
+    return c.json(updatedWebhook);
+  }
+);
 
 export default api;

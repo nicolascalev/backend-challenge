@@ -48,7 +48,7 @@ model Webhook {
 model WebhookEvent {
   id             Int      @id @default(autoincrement())
   webhookId      Int
-  webhook        Webhook  @relation(fields: [webhookId], references: [id])
+  webhook        Webhook  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
   createdAt      DateTime @default(now())
   request        Json?
   response       Json?

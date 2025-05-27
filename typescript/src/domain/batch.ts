@@ -1,12 +1,15 @@
-import { spawn } from "child_process";
-import { writeFile, mkdir, unlink } from "fs/promises";
-import path from "path";
-import prisma from "../../prisma/db";
 import axios from "axios";
+import { mkdir, readdir } from "fs/promises";
+import * as os from "os";
+import * as path from "path";
+import { Worker } from "worker_threads";
+import prisma from "../../prisma/db";
+import { Context } from "hono";
 
 export interface BatchProcessInput {
   images: File[];
   userId: number;
+  context: Context;
 }
 
 export async function createBatchProcess(input: BatchProcessInput) {
@@ -21,61 +24,102 @@ export async function createBatchProcess(input: BatchProcessInput) {
   });
 
   // Start processing in the background
-  processImages(input.images, process.id).catch(console.error);
+  processImages(input.images, process.id, input.context).catch(console.error);
 
   return process;
 }
 
-async function processImages(images: File[], processId: number) {
+async function processImages(
+  images: File[],
+  processId: number,
+  context: Context
+) {
   const processRecord = await prisma.process.findUnique({
     where: { id: processId },
     include: {
       createdBy: {
         include: {
-          Webhook: true
-        }
-      }
-    }
+          Webhook: true,
+        },
+      },
+    },
   });
 
   if (!processRecord) throw new Error("Process not found");
 
-  const outputDir = path.join("public", processRecord.outputUrl); // Assuming "public" is your static root
+  const outputDir = path.join("public", processRecord.outputUrl);
   await mkdir(outputDir, { recursive: true });
 
-  for (let i = 0; i < images.length; i++) {
-    const image = images[i];
-    const imageBuffer = Buffer.from(await image.arrayBuffer());
-    const originalImagePath = path.join(outputDir, `original_${i + 1}.png`);
-    const outputImagePath = path.join(outputDir, `image_${i + 1}.png`);
+  // Create a worker pool with size based on CPU cores (leave one core free for the main thread)
+  const numWorkers = Math.max(1, os.cpus().length - 1);
+  const workers: Worker[] = [];
+  const results: { success: boolean; imageNumber: number; error?: string }[] =
+    [];
 
-    // Write the original image
-    await writeFile(originalImagePath, imageBuffer);
+  // Process images in chunks using the worker pool
+  for (let i = 0; i < images.length; i += numWorkers) {
+    const chunk = images.slice(i, i + numWorkers);
+    const chunkPromises = chunk.map(async (image, chunkIndex) => {
+      const imageNumber = i + chunkIndex + 1;
+      const imageBuffer = Buffer.from(await image.arrayBuffer());
+      const originalImagePath = path.join(
+        outputDir,
+        `original_${imageNumber}.png`
+      );
+      const outputImagePath = path.join(outputDir, `image_${imageNumber}.png`);
 
-    // Run ffmpeg to overlay text
-    await new Promise<void>((resolve, reject) => {
-      const ffmpeg = spawn("ffmpeg", [
-        "-i",
-        originalImagePath,
-        "-vf",
-        `drawtext=text='Image\\: ${
-          i + 1
-        }':fontcolor=red:fontsize=h*0.05:x=(w-text_w)/2:y=(h-text_h)/2`,
-        "-y", // Overwrite output
-        outputImagePath,
-      ]);
+      return new Promise<void>((resolve, reject) => {
+        const worker = new Worker(
+          // IMPORTANT: you have to build the project before running this. ps the build might fail
+          // but if the js file is there, it will work.
+          path.join(__dirname, "../../dist/src/workers/imageProcessor.js"),
+          {
+            workerData: {
+              imageBuffer,
+              originalImagePath,
+              outputImagePath,
+              imageNumber,
+            },
+          }
+        );
 
-      ffmpeg.on("close", (code) => {
-        if (code === 0) resolve();
-        else reject(new Error(`ffmpeg exited with code ${code}`));
+        worker.on("message", (result) => {
+          results.push(result);
+          resolve();
+        });
+
+        worker.on("error", reject);
+        worker.on("exit", (code) => {
+          if (code !== 0) {
+            reject(new Error(`Worker stopped with exit code ${code}`));
+          }
+        });
+
+        workers.push(worker);
       });
-
-      ffmpeg.on("error", reject);
     });
 
-    // Delete the original file after processing
-    await unlink(originalImagePath);
+    // Wait for all workers in the current chunk to complete
+    await Promise.all(chunkPromises);
   }
+
+  // Terminate all workers
+  await Promise.all(workers.map((worker) => worker.terminate()));
+
+  // Check if any images failed to process
+  const failedImages = results.filter((r) => !r.success);
+  if (failedImages.length > 0) {
+    console.error("Failed to process some images:", failedImages);
+  }
+
+  // Get the base URL from the request
+  const baseUrl = new URL(context.req.url).origin;
+
+  // Get the list of processed images
+  const files = await readdir(outputDir);
+  const imageUrls = files
+    .filter((file) => file.startsWith("image_"))
+    .map((file) => `${baseUrl}${processRecord.outputUrl}/${file}`);
 
   // Process webhooks if they exist
   const webhooks = processRecord.createdBy.Webhook;
@@ -85,12 +129,12 @@ async function processImages(images: File[], processId: number) {
         method: webhook.method,
         url: webhook.url,
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         data: {
           processId: processId,
           status: "completed",
-          outputUrl: processRecord.outputUrl,
+          imageUrls,
           imageAmount: processRecord.imageAmount,
           finishedProcessingAt: new Date(),
         },

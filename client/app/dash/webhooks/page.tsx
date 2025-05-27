@@ -40,7 +40,12 @@ function WebhooksPage() {
   const { token } = useAuth();
   const { selectedBackend } = useBackend();
 
-  const { data: webhooks, error, isLoading, mutate } = useSWR<Webhook[]>(
+  const {
+    data: webhooks,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<Webhook[]>(
     selectedBackend ? `${selectedBackend.baseUrl}/api/webhook` : null,
     (url: string) => fetcherWithAuth(url, token as string)
   );
@@ -98,8 +103,12 @@ function WebhooksPage() {
               </Badge>
               <Text>{webhook.url}</Text>
             </Group>
-            <Text c="dimmed">Created at {new Date(webhook.createdAt).toLocaleString()}</Text>
-            <Text c="dimmed">Webhook events: {webhook._count.webhookEvents}</Text>
+            <Text c="dimmed">
+              Created at {new Date(webhook.createdAt).toLocaleString()}
+            </Text>
+            <Text c="dimmed">
+              Webhook events: {webhook._count.webhookEvents}
+            </Text>
             <Group justify="end" align="center" mt="sm">
               <Button
                 component={Link}
@@ -116,7 +125,11 @@ function WebhooksPage() {
       </SimpleGrid>
 
       <Drawer opened={opened} onClose={close} title="Add Webhook">
-        <WebhookForm onCreated={handleWebhookCreated} onCancel={close} />
+        <WebhookForm
+          onCreated={handleWebhookCreated}
+          onCancel={close}
+          action="create"
+        />
       </Drawer>
     </div>
   );

@@ -38,7 +38,7 @@ export default function BasicAppShell({
               hiddenFrom="sm"
               size="sm"
             />
-            <Avatar radius="xl">BC</Avatar>
+            <Avatar radius="xl" color="indigo">BC</Avatar>
             <Text fw={500}>{selectedBackend?.name}</Text>
           </Group>
           <Button

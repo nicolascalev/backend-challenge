@@ -3,19 +3,28 @@
 import { useAuth } from "@/app/contexts/AuthContext";
 import { useBackend } from "@/app/contexts/BackendContext";
 import { fetcherWithAuth } from "@/utils/fetchers";
-import useSWR from "swr";
+import { tryCatch } from "@/utils/try-catch";
 import {
-  Card,
-  Group,
-  Loader,
-  Text,
   Accordion,
+  ActionIcon,
   Badge,
   Button,
+  Card,
+  Drawer,
+  Group,
+  Loader,
+  Menu,
   SimpleGrid,
+  Text,
 } from "@mantine/core";
+import { showNotification } from "@mantine/notifications";
+import { IconChevronRight, IconEdit, IconTrash } from "@tabler/icons-react";
+import axios from "axios";
 import Link from "next/link";
-import { IconChevronRight } from "@tabler/icons-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import useSWR from "swr";
+import { WebhookForm } from "@/app/components/WebhookForm";
 
 interface WebhookEvent {
   id: number;
@@ -29,13 +38,16 @@ interface WebhookEvent {
 }
 
 function SingleWebhookPageClient({ webhookId }: { webhookId: string }) {
+  const router = useRouter();
   const { token } = useAuth();
   const { selectedBackend } = useBackend();
-
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const {
     data: webhook,
     error,
     isLoading,
+    mutate,
   } = useSWR(
     selectedBackend
       ? `${selectedBackend.baseUrl}/api/webhook/${webhookId}/events`
@@ -60,9 +72,61 @@ function SingleWebhookPageClient({ webhookId }: { webhookId: string }) {
 
   return (
     <div>
-      <Text fw={500} mb="md">
-        {webhook.label}
-      </Text>
+      <Group mb="md" gap="xs">
+        <Text fw={500}>{webhook.label}</Text>
+        <ActionIcon 
+          variant="default" 
+          color="black"
+          onClick={() => setIsEditDrawerOpen(true)}
+        >
+          <IconEdit size={14} />
+        </ActionIcon>
+        <Menu>
+          <Menu.Target>
+            <ActionIcon variant="light" color="red" loading={isDeleting}>
+              <IconTrash size={14} />
+            </ActionIcon>
+          </Menu.Target>
+          <Menu.Dropdown>
+            <Menu.Label>Delete webhook</Menu.Label>
+            <Menu.Item
+              color="red"
+              leftSection={<IconTrash size={14} />}
+              onClick={async () => {
+                setIsDeleting(true);
+                const { error } = await tryCatch(
+                  axios.delete(
+                    `${selectedBackend?.baseUrl}/api/webhook/${webhookId}`,
+                    {
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                      },
+                    }
+                  )
+                );
+
+                if (error) {
+                  showNotification({
+                    title: "Error",
+                    message: "Failed to delete webhook",
+                    color: "red",
+                  });
+                } else {
+                  showNotification({
+                    title: "Success",
+                    message: "Webhook deleted successfully",
+                    color: "green",
+                  });
+                  router.push("/dash/webhooks");
+                }
+                setIsDeleting(false);
+              }}
+            >
+              Confirm delete
+            </Menu.Item>
+          </Menu.Dropdown>
+        </Menu>
+      </Group>
       <SimpleGrid cols={{ base: 1, md: 2, lg: 3 }}>
         <div>
           <Text fw={500}>Created at</Text>
@@ -84,7 +148,7 @@ function SingleWebhookPageClient({ webhookId }: { webhookId: string }) {
           {JSON.stringify(webhook.requestConfig, null, 2)}
         </pre>
       </div>
-      <Card withBorder style={{ borderBottom: "none" }}>
+      <Card withBorder>
         {webhook?.webhookEvents?.length === 0 ? (
           <Text c="dimmed">No events found for this webhook</Text>
         ) : (
@@ -127,6 +191,32 @@ function SingleWebhookPageClient({ webhookId }: { webhookId: string }) {
           </Card.Section>
         )}
       </Card>
+      <Drawer
+        opened={isEditDrawerOpen}
+        onClose={() => setIsEditDrawerOpen(false)}
+        title="Edit Webhook"
+      >
+        <WebhookForm
+          action="edit"
+          defaultValues={{
+            id: webhook.id,
+            label: webhook.label,
+            url: webhook.url,
+            method: webhook.method,
+            requestConfig: webhook.requestConfig,
+          }}
+          onUpdated={() => {
+            showNotification({
+              title: "Success",
+              message: "Webhook updated successfully",
+              color: "green",
+            });
+            mutate();
+            setIsEditDrawerOpen(false);
+          }}
+          onCancel={() => setIsEditDrawerOpen(false)}
+        />
+      </Drawer>
     </div>
   );
 }
