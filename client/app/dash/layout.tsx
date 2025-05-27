@@ -13,15 +13,22 @@ import {
 import { useAuth } from "../contexts/AuthContext";
 import { useBackend } from "../contexts/BackendContext";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 export default function BasicAppShell({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [opened, { toggle }] = useDisclosure();
+  const [opened, { toggle, close }] = useDisclosure();
   const { logout } = useAuth();
   const { selectedBackend } = useBackend();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    close();
+  }, [pathname, close]);
 
   return (
     <AppShell
@@ -38,7 +45,9 @@ export default function BasicAppShell({
               hiddenFrom="sm"
               size="sm"
             />
-            <Avatar radius="xl" color="indigo">BC</Avatar>
+            <Avatar radius="xl" color="indigo">
+              BC
+            </Avatar>
             <Text fw={500}>{selectedBackend?.name}</Text>
           </Group>
           <Button
