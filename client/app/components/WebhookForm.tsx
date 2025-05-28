@@ -152,10 +152,10 @@ export function WebhookForm({ onCreated, onUpdated, onCancel, action, defaultVal
         maxRows={10}
         {...form.getInputProps("requestConfig")}
       />
-      <Button type="submit" fullWidth mt="xl">
+      <Button type="submit" fullWidth mt="xl" color="teal">
         {action === 'create' ? 'Create' : 'Update'} Webhook
       </Button>
-      <Button variant="subtle" fullWidth mt="sm" onClick={onCancel}>
+      <Button variant="subtle" fullWidth mt="sm" onClick={onCancel} color="teal">
         Cancel
       </Button>
     </form>

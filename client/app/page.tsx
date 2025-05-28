@@ -17,27 +17,33 @@ export default function Home() {
 
   return (
     <Center mih="100dvh">
-      <Card withBorder className="w-full max-w-[500px]">
-        {backends.map((backend) => (
-          <div
-            key={backend.name}
-            onClick={() => {
-              if (backend.baseUrl) {
-                setSelectedBackend(backend as Backend);
-                router.push("/login");
+      <div className="w-full max-w-[500px] flex flex-col gap-4">
+        <Text fw={500}>Backend agnostic image processing</Text>
+        <Card withBorder>
+          {backends.map((backend) => (
+            <div
+              key={backend.name}
+              onClick={() => {
+                if (backend.baseUrl) {
+                  setSelectedBackend(backend as Backend);
+                  router.push("/login");
+                }
+              }}
+              className={
+                backend.baseUrl ? "cursor-pointer" : "cursor-not-allowed"
               }
-            }}
-            className={backend.baseUrl ? "cursor-pointer" : "cursor-not-allowed"}
-          >
-            <Text>{backend.name}</Text>
-            <ServerStatus baseUrl={backend.baseUrl} />
-            <Card.Section my="md">
-              <Divider />
-            </Card.Section>
-          </div>
-        ))}
-        <Text>Choose a backend for the same experience</Text>
-      </Card>
+            >
+              <Text>{backend.name}</Text>
+              <ServerStatus baseUrl={backend.baseUrl} />
+              {backends.indexOf(backend) !== backends.length - 1 && (
+                <Card.Section my="md">
+                  <Divider />
+                </Card.Section>
+              )}
+            </div>
+          ))}
+        </Card>
+      </div>
     </Center>
   );
 }
