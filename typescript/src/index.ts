@@ -1,6 +1,7 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger'
 import { serveStatic } from '@hono/node-server/serve-static';
 import api from "./api/routes";
 
@@ -19,10 +20,7 @@ app.use('*', cors({
 // Serve static files from the public directory
 app.use('/*', serveStatic({ root: './public' }));
 
-app.use("*", (c, next) => {
-  console.log(`${c.req.method} ${c.req.path}`);
-  return next();
-});
+app.use(logger());
 
 app.route("/api", api);
 
